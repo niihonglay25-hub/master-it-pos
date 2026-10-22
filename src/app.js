@@ -1,5 +1,7 @@
 import express from 'express'
 import cookieParser from 'cookie-parser'
+import {rateLimit} from 'express-rate-limit'
+import cors from 'cors';
 import { errorHandler } from './helpers/error-handler.js'
 import categoryRoute from './routes/category.route.js'
 import customerRoute from './routes/customer.route.js'
@@ -13,10 +15,24 @@ import { Roles } from './middlewares/permission.middleware.js'
 import purchaseRoute from './routes/purchase.route.js'
 import saleRoute from './routes/sale.route.js'
 import reportRoute from './routes/report.route.js'
+import { upload } from './middlewares/upload.middleware.js'
+import morgan from 'morgan'
 const app = express()
 app.use(express.json())
 app.use(cookieParser())
+app.use(cors({
+    origin:[process.env.FRONTEND_LOCAL_URL, process.env.FRONTEND_PRODUCTION_URL],
+    methods:['GET','POST','PUT','DELETE','PATCH'],
+    credentials: true,
+    })
+);
 
+const limiter = rateLimit({
+    windowMs:1*60*1000, //1 minute
+    limit:5,
+    message: "Too many requests from this IP, please try again after a minute"
+})
+app.use(limiter)
 // routes
 app.use('/api/customers',protect, customerRoute)
 app.use('/api/suppliers',protect, supplierRoute)
@@ -28,7 +44,8 @@ app.use('/api/auth',authRoute)
 app.use('/api/purchases',protect,purchaseRoute)
 app.use('/api/sales',protect,saleRoute)
 app.use('/api/reports',protect,reportRoute)
+app.use('/uploads', express.static('uploads'));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 app.use(errorHandler)
 export default app
-
